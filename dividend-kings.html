@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Dividend Kings Tracker</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #f5f5f5; color: #111; min-height: 100vh; padding: 24px; }
+  h1 { font-size: 20px; font-weight: 600; margin-bottom: 4px; }
+  .subtitle { font-size: 13px; color: #666; margin-bottom: 20px; }
+  .card { background: #fff; border: 1px solid #e0e0e0; border-radius: 10px; padding: 16px 20px; margin-bottom: 16px; }
+  .controls { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-top: 12px; }
+  input[type=text] { height: 38px; padding: 0 12px; font-size: 13px; font-family: monospace; border: 1px solid #ccc; border-radius: 8px; background: #fafafa; color: #111; flex: 1; min-width: 180px; }
+  select { height: 38px; padding: 0 10px; font-size: 13px; border: 1px solid #ccc; border-radius: 8px; background: #fafafa; color: #111; }
+  button { height: 38px; padding: 0 18px; font-size: 13px; font-weight: 600; border-radius: 8px; cursor: pointer; border: 1px solid #ccc; background: #fff; color: #111; transition: background 0.15s; }
+  button:hover { background: #f0f0f0; }
+  button.primary { background: #111; color: #fff; border-color: #111; }
+  button.primary:hover { background: #333; }
+  #msg { font-size: 12px; color: #666; margin-top: 10px; min-height: 16px; }
+  .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 16px; }
+  .stat { border-radius: 8px; padding: 14px 16px; }
+  .stat-label { font-size: 11px; font-weight: 500; margin-bottom: 6px; }
+  .stat-value { font-size: 26px; font-weight: 700; }
+  .stat-default { background: #f0f0f0; }
+  .stat-default .stat-label { color: #888; }
+  .stat-default .stat-value { color: #111; }
+  .stat-red { background: #fff0f0; }
+  .stat-red .stat-label, .stat-red .stat-value { color: #c0392b; }
+  .stat-amber { background: #fff8ec; }
+  .stat-amber .stat-label, .stat-amber .stat-value { color: #b7620a; }
+  .stat-green { background: #f0faf0; }
+  .stat-green .stat-label, .stat-green .stat-value { color: #2d7a2d; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  thead th { text-align: left; font-size: 11px; font-weight: 600; color: #888; padding: 8px 12px; background: #f8f8f8; border-bottom: 1px solid #e0e0e0; }
+  thead th.r { text-align: right; }
+  thead th.c { text-align: center; }
+  tbody tr { border-bottom: 1px solid #f0f0f0; }
+  tbody tr:last-child { border-bottom: none; }
+  tbody tr:hover { background: #fafafa; }
+  td { padding: 10px 12px; color: #111; }
+  td.r { text-align: right; }
+  td.c { text-align: center; }
+  td.muted { color: #888; font-size: 12px; }
+  td.bold { font-weight: 600; }
+  .badge { display: inline-block; font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 20px; white-space: nowrap; }
+  .badge-red { background: #fff0f0; color: #c0392b; }
+  .badge-amber { background: #fff8ec; color: #b7620a; }
+  .badge-green { background: #f0faf0; color: #2d7a2d; }
+  .badge-gray { background: #f0f0f0; color: #888; }
+  .empty { padding: 40px; text-align: center; color: #aaa; font-size: 14px; }
+  .footer { font-size: 11px; color: #aaa; text-align: center; margin-top: 12px; }
+  .field-label { font-size: 12px; font-weight: 500; color: #555; margin-bottom: 5px; }
+  .field-row { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 8px; }
+</style>
+</head>
+<body>
+
+<h1>Dividend Kings Tracker</h1>
+<p class="subtitle">Powered by Polygon.io via your Cloudflare Worker proxy</p>
+
+<div class="card">
+  <div class="field-label">Cloudflare Worker URL</div>
+  <div class="field-row">
+    <input type="text" id="workerUrl" placeholder="https://fmp-proxy.caddyshackkidd.workers.dev" />
+  </div>
+  <div class="field-label">Polygon API Key</div>
+  <div class="field-row">
+    <input type="text" id="polyKey" placeholder="Your Polygon.io API key..." />
+  </div>
+  <div class="controls">
+    <select id="winDays">
+      <option value="30">Next 30 days</option>
+      <option value="60">Next 60 days</option>
+      <option value="90">Next 90 days</option>
+    </select>
+    <button class="primary" onclick="fetchAll()">Fetch live data</button>
+    <button onclick="loadDemo()">Demo</button>
+  </div>
+  <div id="msg"></div>
+</div>
+
+<div class="stats">
+  <div class="stat stat-default">
+    <div class="stat-label">Kings tracked</div>
+    <div class="stat-value" id="sTotal">—</div>
+  </div>
+  <div class="stat stat-red">
+    <div class="stat-label">Buy NOW (≤7 days)</div>
+    <div class="stat-value" id="sUrgent">—</div>
+  </div>
+  <div class="stat stat-amber">
+    <div class="stat-label">Act soon (8–14 days)</div>
+    <div class="stat-value" id="sSoon">—</div>
+  </div>
+  <div class="stat stat-green">
+    <div class="stat-label">On radar (15+ days)</div>
+    <div class="stat-value" id="sUpcoming">—</div>
+  </div>
+</div>
+
+<div class="card" style="padding: 0; overflow: hidden;">
+  <table>
+    <thead>
+      <tr>
+        <th>Ticker</th>
+        <th>Company</th>
+        <th class="r">Price</th>
+        <th class="r">Div / sh</th>
+        <th class="r">Annual</th>
+        <th class="r">Yield</th>
+        <th class="r">Ex-date</th>
+        <th class="r">Pay date</th>
+        <th class="c">Status</th>
+      </tr>
+    </thead>
+    <tbody id="tbody">
+      <tr><td colspan="9" class="empty">Enter your Worker URL and Polygon key, then click Fetch live data.</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<p class="footer">Annual div = div/sh × payment frequency. You must own shares before market close the day BEFORE the ex-date (T+1 settlement).</p>
+
+<script>
+var KINGS = [
+  {symbol:"KO",  name:"Coca-Cola"},
+  {symbol:"PG",  name:"Procter & Gamble"},
+  {symbol:"JNJ", name:"Johnson & Johnson"},
+  {symbol:"MMM", name:"3M Company"},
+  {symbol:"CL",  name:"Colgate-Palmolive"},
+  {symbol:"EMR", name:"Emerson Electric"},
+  {symbol:"GPC", name:"Genuine Parts"},
+  {symbol:"LOW", name:"Lowe's Companies"},
+  {symbol:"ITW", name:"Illinois Tool Works"},
+  {symbol:"SWK", name:"Stanley Black & Decker"},
+  {symbol:"PH",  name:"Parker-Hannifin"},
+  {symbol:"GWW", name:"W.W. Grainger"},
+  {symbol:"BDX", name:"Becton Dickinson"},
+  {symbol:"ADP", name:"ADP"},
+  {symbol:"MKC", name:"McCormick & Company"},
+  {symbol:"ABT", name:"Abbott Labs"},
+  {symbol:"SYY", name:"Sysco Corp"},
+  {symbol:"CINF",name:"Cincinnati Financial"},
+  {symbol:"DOV", name:"Dover Corporation"},
+  {symbol:"NDSN",name:"Nordson Corporation"},
+  {symbol:"ABBV",name:"AbbVie Inc."},
+  {symbol:"WMT", name:"Walmart Inc."},
+  {symbol:"SPGI",name:"S&P Global"},
+  {symbol:"NUE", name:"Nucor Corporation"},
+  {symbol:"ADM", name:"Archer-Daniels-Midland"},
+];
+var KING_SET = new Set(KINGS.map(function(k){ return k.symbol; }));
+
+function fmt(d){ return d.toISOString().split("T")[0]; }
+
+function daysUntil(s){
+  var t = new Date(); t.setHours(0,0,0,0);
+  var d = new Date(s); d.setHours(0,0,0,0);
+  return Math.round((d - t) / 86400000);
+}
+
+function getBadge(days){
+  if(days < 0)   return {cls:"badge-gray",  txt:"Passed"};
+  if(days <= 2)  return {cls:"badge-red",   txt:"Buy TODAY — "+days+"d left"};
+  if(days <= 7)  return {cls:"badge-red",   txt:days+"d to ex-date"};
+  if(days <= 14) return {cls:"badge-amber", txt:days+"d to ex-date"};
+  return               {cls:"badge-green", txt:days+"d to ex-date"};
+}
+
+function renderTable(rows){
+  var sorted = rows.slice().sort(function(a,b){ return new Date(a.exDate) - new Date(b.exDate); });
+  var ur=0, so=0, up=0;
+  sorted.forEach(function(r){
+    var d = daysUntil(r.exDate);
+    if(d >= 0 && d <= 7) ur++;
+    else if(d > 7 && d <= 14) so++;
+    else if(d > 14) up++;
+  });
+  document.getElementById("sTotal").textContent   = sorted.length;
+  document.getElementById("sUrgent").textContent  = ur;
+  document.getElementById("sSoon").textContent    = so;
+  document.getElementById("sUpcoming").textContent= up;
+
+  if(!sorted.length){
+    document.getElementById("tbody").innerHTML = '<tr><td colspan="9" class="empty">No Dividend Kings found in this window — try a wider range.</td></tr>';
+    return;
+  }
+
+  var html = "";
+  sorted.forEach(function(r){
+    var days = daysUntil(r.exDate);
+    var b = getBadge(days);
+    var king = KINGS.find(function(k){ return k.symbol === r.symbol; });
+    var name = king ? king.name : r.symbol;
+    var freq = r.frequency || 4;
+    var annual = r.dividend * freq;
+    var yieldStr = "—", yieldStyle = "color:#aaa;";
+    if(r.price && r.price > 0){
+      var yp = annual / r.price * 100;
+      yieldStr = yp.toFixed(2) + "%";
+      yieldStyle = yp >= 4 ? "color:#2d7a2d;font-weight:600;" : yp >= 2.5 ? "color:#111;font-weight:600;" : "color:#888;";
+    }
+    html += "<tr>"
+      + "<td class='bold'>"+r.symbol+"</td>"
+      + "<td class='muted'>"+name+"</td>"
+      + "<td class='r muted'>"+(r.price ? "$"+r.price.toFixed(2) : "—")+"</td>"
+      + "<td class='r bold'>$"+r.dividend.toFixed(4)+"</td>"
+      + "<td class='r muted'>$"+annual.toFixed(2)+"</td>"
+      + "<td class='r' style='"+yieldStyle+"'>"+yieldStr+"</td>"
+      + "<td class='r muted'>"+r.exDate+"</td>"
+      + "<td class='r muted'>"+(r.payDate||"—")+"</td>"
+      + "<td class='c'><span class='badge "+b.cls+"'>"+b.txt+"</span></td>"
+      + "</tr>";
+  });
+  document.getElementById("tbody").innerHTML = html;
+}
+
+async function fetchAll(){
+  var workerBase = document.getElementById("workerUrl").value.trim().replace(/\/$/,"");
+  var key = document.getElementById("polyKey").value.trim();
+  if(!workerBase || !key){
+    document.getElementById("msg").textContent = "Please enter both your Worker URL and Polygon API key.";
+    return;
+  }
+
+  var days = parseInt(document.getElementById("winDays").value);
+  var today = new Date();
+  var future = new Date(); future.setDate(future.getDate() + days);
+
+  document.getElementById("msg").textContent = "Step 1/2 — fetching dividend calendar...";
+  document.getElementById("tbody").innerHTML = '<tr><td colspan="9" class="empty">Loading...</td></tr>';
+
+  try {
+    var divUrl = workerBase + "/v3/reference/dividends"
+      + "?ex_dividend_date.gte=" + fmt(today)
+      + "&ex_dividend_date.lte=" + fmt(future)
+      + "&dividend_type=CD&order=asc&sort=ex_dividend_date&limit=1000&apiKey=" + key;
+
+    var r1 = await fetch(divUrl);
+    if(!r1.ok) throw new Error("Dividend fetch failed (HTTP " + r1.status + "). Check your Worker URL.");
+    var d1 = await r1.json();
+    if(d1.status === "NOT_AUTHORIZED" || d1.status === "ERROR")
+      throw new Error(d1.message || "Polygon API error — check your key.");
+
+    var results = d1.results || [];
+    var hits = results.filter(function(d){ return KING_SET.has(d.ticker); });
+
+    if(!hits.length){
+      document.getElementById("msg").textContent = "No Dividend Kings have ex-dates in the next " + days + " days. Try a wider window.";
+      document.getElementById("tbody").innerHTML = '<tr><td colspan="9" class="empty">No results — try 60 or 90 days.</td></tr>';
+      return;
+    }
+
+    var uniq = [...new Set(hits.map(function(d){ return d.ticker; }))];
+    document.getElementById("msg").textContent = "Step 2/2 — fetching live prices for " + uniq.length + " stocks...";
+
+    var priceMap = {};
+    try {
+      var snapUrl = workerBase + "/v2/snapshot/locale/us/markets/stocks/tickers"
+        + "?tickers=" + uniq.join(",") + "&apiKey=" + key;
+      var r2 = await fetch(snapUrl);
+      if(r2.ok){
+        var d2 = await r2.json();
+        var tickers = d2.tickers || [];
+        tickers.forEach(function(t){
+          var price = (t.day && t.day.c) || (t.prevDay && t.prevDay.c) || null;
+          if(price) priceMap[t.ticker] = price;
+        });
+      }
+    } catch(e2) { /* prices optional */ }
+
+    var rows = hits.map(function(d){
+      return {
+        symbol:    d.ticker,
+        dividend:  d.cash_amount,
+        frequency: d.frequency || 4,
+        exDate:    d.ex_dividend_date,
+        payDate:   d.pay_date || null,
+        price:     priceMap[d.ticker] || null
+      };
+    });
+
+    document.getElementById("msg").textContent =
+      "Found " + rows.length + " Dividend Kings with upcoming ex-dates. "
+      + "Prices loaded for " + Object.keys(priceMap).length + " symbols.";
+    renderTable(rows);
+
+  } catch(e) {
+    document.getElementById("msg").textContent = "Error: " + e.message;
+    document.getElementById("tbody").innerHTML = '<tr><td colspan="9" class="empty">Something went wrong — see the message above.</td></tr>';
+  }
+}
+
+function loadDemo(){
+  var t = new Date();
+  function off(n){ var d = new Date(t); d.setDate(d.getDate()+n); return d.toISOString().split("T")[0]; }
+  renderTable([
+    {symbol:"KO",  dividend:0.485, frequency:4, exDate:off(1),  payDate:off(22), price:61.20},
+    {symbol:"PG",  dividend:0.9407,frequency:4, exDate:off(4),  payDate:off(25), price:162.45},
+    {symbol:"JNJ", dividend:1.19,  frequency:4, exDate:off(6),  payDate:off(27), price:155.30},
+    {symbol:"LOW", dividend:1.10,  frequency:4, exDate:off(11), payDate:off(32), price:230.55},
+    {symbol:"EMR", dividend:0.525, frequency:4, exDate:off(13), payDate:off(34), price:98.72},
+    {symbol:"GPC", dividend:0.95,  frequency:4, exDate:off(18), payDate:off(39), price:118.40},
+    {symbol:"ADP", dividend:1.40,  frequency:4, exDate:off(21), payDate:off(42), price:241.10},
+    {symbol:"ITW", dividend:1.40,  frequency:4, exDate:off(26), payDate:off(47), price:228.90},
+    {symbol:"CL",  dividend:0.50,  frequency:4, exDate:off(29), payDate:off(50), price:92.15},
+    {symbol:"BDX", dividend:0.95,  frequency:4, exDate:off(33), payDate:off(54), price:210.60},
+  ]);
+  document.getElementById("msg").textContent = "Demo mode — connect your Worker and Polygon key for live data.";
+}
+
+loadDemo();
+</script>
+</body>
+</html>
