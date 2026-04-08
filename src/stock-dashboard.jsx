@@ -289,7 +289,7 @@ export default function StockDashboard() {
   const [time,     setTime]     = useState("");
 
   useEffect(() => {
-    const id = setInterval(() => setTicker(t => t + 1), 150);
+    const id = setInterval(() => setTicker(t => t + 1), 300);
     return () => clearInterval(id);
   }, []);
 
@@ -312,7 +312,7 @@ export default function StockDashboard() {
   }, []);
 
   const tickerItems = [...STOCKS, ...STOCKS];
-  const offset      = (ticker * 0.05) % (tickerItems.length / 2 * 160);
+  const offset      = (ticker * 0.02) % (tickerItems.length / 2 * 160);
   const selChart    = generateChart(selected.price, 80, 1.2);
   const selUp       = selected.change >= 0;
 
