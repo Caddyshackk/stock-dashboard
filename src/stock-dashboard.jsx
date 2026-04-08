@@ -289,7 +289,7 @@ export default function StockDashboard() {
   const [time,     setTime]     = useState("");
 
   useEffect(() => {
-    const id = setInterval(() => setTicker(t => t + 1), 300);
+    const id = setInterval(() => setTicker(t => t + 1), 1000);
     return () => clearInterval(id);
   }, []);
 
