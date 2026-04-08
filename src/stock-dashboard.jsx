@@ -80,7 +80,7 @@ const KING_SET = new Set(KINGS.map(k => k.symbol));
 function generateChart(base, len = 60, vol = 1) {
   const pts = []; let v = base;
   for (let i = 0; i < len; i++) {
-    v += (Math.random() - 0.49) * vol * (base / 100);
+    v += (Math.random() - 0.5) * vol * (base / 100);
     pts.push({ t: i, v: parseFloat(v.toFixed(2)) });
   }
   return pts;
@@ -300,7 +300,7 @@ export default function StockDashboard() {
         STOCKS.forEach(s => { next[s.symbol] = parseFloat((prev[s.symbol] + (Math.random() - 0.5) * 0.08).toFixed(2)); });
         return next;
       });
-    }, 1800);
+    }, 5000);
     return () => clearInterval(id);
   }, []);
 
