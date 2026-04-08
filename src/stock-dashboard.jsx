@@ -297,10 +297,10 @@ export default function StockDashboard() {
     const id = setInterval(() => {
       setPrices(prev => {
         const next = { ...prev };
-        STOCKS.forEach(s => { next[s.symbol] = parseFloat((prev[s.symbol] + (Math.random() - 0.5) * 0.08).toFixed(2)); });
+        STOCKS.forEach(s => { next[s.symbol] = parseFloat((prev[s.symbol] + (Math.random() - 0.5) * 0.02).toFixed(2)); });
         return next;
       });
-    }, 5000);
+    }, 6000);
     return () => clearInterval(id);
   }, []);
 
